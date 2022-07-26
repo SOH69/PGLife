@@ -4,36 +4,38 @@
 
     $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : NULL;
     $property_name = $_GET['name'];
+    $property_id = $_GET['id'];
 
     $sql = "SELECT *
-        FROM properties p
-        INNER JOIN properties_amenities pa ON p.id = pa.property_id";
+        FROM properties_amenities pa
+        INNER JOIN properties p ON pa.property_id = p.id
+        INNER JOIN amenities a ON pa.amenity_id = a.id
+        WHERE p.id = $property_id";
     $result = mysqli_query($conn, $sql);
     if (!$result) {
         echo "Something went wrong!";
         return;
     }
+    $details = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
-    $sql_1 = "SELECT *
-        FROM properties_amenities pa
-        INNER JOIN amenities a ON pa.amenity_id = a.id";
+    $sql_1 = "SELECT * FROM properties WHERE id = '$property_id'";
     $result_1 = mysqli_query($conn, $sql_1);
     if (!$result_1) {
         echo "Something went wrong!";
         return;
     }
+    $property = mysqli_fetch_assoc($result_1);
 
-    $sql_2 = "SELECT * FROM properties WHERE name = '$property_name '";
-    $result_2 = mysqli_query($conn, $sql_2);
-    if (!$result_2) {
+    $sql_3 = "SELECT *
+        FROM interested_users_properties iup
+        INNER JOIN properties p ON iup.property_id = p.id
+        WHERE p.id = $property_id";
+    $result_3 = mysqli_query($conn, $sql_3);
+    if (!$result_3) {
         echo "Something went wrong!";
         return;
     }
-    $details = mysqli_fetch_all($result_2, MYSQLI_ASSOC);
-    echo(count($details));
-    foreach ($details as $detail) {
-        echo $detail['type'];
-    }
+    $interested_users_properties = mysqli_fetch_all($result_3, MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -76,20 +78,33 @@
 
     <div id="property-images" class="carousel slide" data-ride="carousel">
         <ol class="carousel-indicators">
-            <li data-target="#property-images" data-slide-to="0" class="active"></li>
-            <li data-target="#property-images" data-slide-to="1" class=""></li>
-            <li data-target="#property-images" data-slide-to="2" class=""></li>
+            <?php
+                $property_images = glob("img/properties/".$property['id']."/*");
+                for($i = 0; $i < count($property_images); $i++) {
+                    if ($i == 0) {
+            ?>
+                    <li data-target="#property-images" data-slide-to= <?php echo $i ?> class="active"></li>
+            <?php
+                } else {
+            ?>
+                <li data-target="#property-images" data-slide-to= <?php echo $i ?> class=""></li>
+            <?php
+                    }
+                }
+            ?>
         </ol>
         <div class="carousel-inner">
-            <div class="carousel-item active">
-                <img class="d-block w-100" src="img/properties/1/1d4f0757fdb86d5f.jpg" alt="slide">
-            </div>
-            <div class="carousel-item">
-                <img class="d-block w-100" src="img/properties/1/46ebbb537aa9fb0a.jpg" alt="slide">
-            </div>
-            <div class="carousel-item">
-                <img class="d-block w-100" src="img/properties/1/eace7b9114fd6046.jpg" alt="slide">
-            </div>
+
+            <?php
+                $property_images = glob("img/properties/".$property['id']."/*");
+                for($i = 0; $i < count($property_images); $i++) {
+            ?>
+                <div class="carousel-item active">
+                    <img class="d-block w-100" src = <?php echo $property_images[$i] ?> alt="slide">
+                </div>
+            <?php
+                }
+            ?>
         </div>
         <a class="carousel-control-prev" href="#property-images" role="button" data-slide="prev">
             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -103,30 +118,42 @@
 
     <div class="property-summary page-container">
         <div class="row no-gutters justify-content-between">
-            <div class="star-container" title="4.8">
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
+            <?php
+                $total_rating = ($property['rating_clean'] + $property['rating_food'] + $property['rating_safety']) / 3;
+                $avg_rating = round($total_rating, 1);
+            ?>
+            <div class="star-container" title="<?php echo $avg_rating?>">
+                <?php for($i = 0; $i < round($avg_rating, 0, PHP_ROUND_HALF_DOWN); $i++) { ?>
+                    <i class="fas fa-star"></i>
+                <?php } ?>
+                <?php if ($avg_rating - (round($avg_rating, 0, PHP_ROUND_HALF_DOWN )) >= 0.4) { ?>
+                    <i class="fas fa-star-half-alt"></i>
+                <?php } ?>
             </div>
             <div class="interested-container">
                 <i class="is-interested-image far fa-heart"></i>
                 <div class="interested-text">
-                    <span class="interested-user-count">6</span> interested
+                    <?php $count = 0;
+                        for($i = 0; $i < count($interested_users_properties); $i++){
+                            if ($interested_users_properties[$i]['property_id'] == $property['id'] ){
+                                $count++;
+                            }
+                        }
+                    ?>
+                    <span class="interested-user-count"><?php echo $count ?></span> interested
                 </div>
             </div>
         </div>
         <div class="detail-container">
-            <div class="property-name">Ganpati Paying Guest</div>
-            <div class="property-address">Police Beat, Sainath Complex, Besides, SV Rd, Daulat Nagar, Borivali East, Mumbai - 400066</div>
+            <div class="property-name"><?php echo $property['name'] ?></div>
+            <div class="property-address"><?php echo $property['address'] ?></div>
             <div class="property-gender">
-                <img src="img/unisex.png" />
+                <img src="img/<?php echo $property['gender'] ?>.png" />
             </div>
         </div>
         <div class="row no-gutters">
             <div class="rent-container col-6">
-                <div class="rent">Rs 8,500/-</div>
+                <div class="rent"><?php echo $property['rent'] ?>/-</div>
                 <div class="rent-unit">per month</div>
             </div>
             <div class="button-container col-6">
@@ -141,58 +168,50 @@
             <div class="row justify-content-between">
                 <div class="col-md-auto">
                     <h5>Building</h5>
-                    <div class="amenity-container">
-                        <img src="img/amenities/powerbackup.svg">
-                        <span>Power backup</span>
-                    </div>
-                    <div class="amenity-container">
-                        <img src="img/amenities/lift.svg">
-                        <span>Lift</span>
-                    </div>
+                    <?php foreach ($details as $detail) {
+                            if ($detail['type'] == 'Building') {
+                    ?>
+                        <div class="amenity-container">
+                            <img src="img/amenities/<?php echo $detail['icon'] ?>.svg">
+                            <span><?php echo $detail['name'] ?></span>
+                        </div>
+                    <?php } }?>
                 </div>
 
                 <div class="col-md-auto">
                     <h5>Common Area</h5>
-                    <div class="amenity-container">
-                        <img src="img/amenities/wifi.svg">
-                        <span>Wifi</span>
-                    </div>
-                    <div class="amenity-container">
-                        <img src="img/amenities/tv.svg">
-                        <span>TV</span>
-                    </div>
-                    <div class="amenity-container">
-                        <img src="img/amenities/rowater.svg">
-                        <span>Water Purifier</span>
-                    </div>
-                    <div class="amenity-container">
-                        <img src="img/amenities/dining.svg">
-                        <span>Dining</span>
-                    </div>
-                    <div class="amenity-container">
-                        <img src="img/amenities/washingmachine.svg">
-                        <span>Washing Machine</span>
-                    </div>
+                    <?php foreach ($details as $detail) {
+                            if ($detail['type'] == 'Common Area') {
+                    ?>
+                        <div class="amenity-container">
+                            <img src="img/amenities/<?php echo $detail['icon'] ?>.svg">
+                            <span><?php echo $detail['name'] ?></span>
+                        </div>
+                    <?php } }?>
                 </div>
 
                 <div class="col-md-auto">
                     <h5>Bedroom</h5>
-                    <div class="amenity-container">
-                        <img src="img/amenities/bed.svg">
-                        <span>Bed with Matress</span>
-                    </div>
-                    <div class="amenity-container">
-                        <img src="img/amenities/ac.svg">
-                        <span>Air Conditioner</span>
-                    </div>
+                    <?php foreach ($details as $detail) {
+                            if ($detail['type'] == 'Bedroom') {
+                    ?>
+                        <div class="amenity-container">
+                            <img src="img/amenities/<?php echo $detail['icon'] ?>.svg">
+                            <span><?php echo $detail['name'] ?></span>
+                        </div>
+                    <?php } }?>
                 </div>
 
                 <div class="col-md-auto">
                     <h5>Washroom</h5>
-                    <div class="amenity-container">
-                        <img src="img/amenities/geyser.svg">
-                        <span>Geyser</span>
-                    </div>
+                    <?php foreach ($details as $detail) {
+                            if ($detail['type'] == 'Washroom') {
+                    ?>
+                        <div class="amenity-container">
+                            <img src="img/amenities/<?php echo $detail['icon'] ?>.svg">
+                            <span><?php echo $detail['name'] ?></span>
+                        </div>
+                    <?php } }?>
                 </div>
             </div>
         </div>
@@ -200,7 +219,7 @@
 
     <div class="property-about page-container">
         <h1>About the Property</h1>
-        <p>Furnished studio apartment - share it with close friends! Located in posh area of Bijwasan in Delhi, this house is available for both boys and girls. Go for a private room or opt for a shared one and make it your own abode. Go out with your new friends - catch a movie at the nearest cinema hall or just chill in a cafe which is not even 2 kms away. Unwind with your flatmates after a long day at work/college. With a common living area and a shared kitchen, make your own FRIENDS moments. After all, there's always a Joey with unlimited supply of food. Remember, all it needs is one crazy story to convert a roomie into a BFF. What's nearby/Your New Neighborhood 4.0 Kms from Dwarka Sector- 21 Metro Station.</p>
+        <p><?php echo $property['description'] ?></p>
     </div>
 
     <div class="property-rating">
@@ -213,12 +232,13 @@
                             <i class="rating-criteria-icon fas fa-broom"></i>
                             <span class="rating-criteria-text">Cleanliness</span>
                         </div>
-                        <div class="rating-criteria-star-container col-6" title="4.3">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
+                        <div class="rating-criteria-star-container col-6" title= <?php echo $property['rating_clean'] ?> >
+                            <?php for($i = 0; $i < round($property['rating_clean'], 0, PHP_ROUND_HALF_DOWN); $i++) { ?>
+                                <i class="fas fa-star"></i>
+                            <?php } ?>
+                            <?php if ($property['rating_clean'] - (round($property['rating_clean'], 0, PHP_ROUND_HALF_DOWN )) >= 0.4) { ?>
+                                <i class="fas fa-star-half-alt"></i>
+                            <?php } ?>
                         </div>
                     </div>
 
@@ -227,12 +247,13 @@
                             <i class="rating-criteria-icon fas fa-utensils"></i>
                             <span class="rating-criteria-text">Food Quality</span>
                         </div>
-                        <div class="rating-criteria-star-container col-6" title="3.4">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
-                            <i class="far fa-star"></i>
+                        <div class="rating-criteria-star-container col-6" title= <?php echo $property['rating_food'] ?> >
+                            <?php for($i = 0; $i < round($property['rating_food'], 0, PHP_ROUND_HALF_DOWN); $i++) { ?>
+                                <i class="fas fa-star"></i>
+                            <?php } ?>
+                            <?php if ($property['rating_food'] - (round($property['rating_food'], 0, PHP_ROUND_HALF_DOWN )) >= 0.4) { ?>
+                                <i class="fas fa-star-half-alt"></i>
+                            <?php } ?>
                         </div>
                     </div>
 
@@ -241,25 +262,31 @@
                             <i class="rating-criteria-icon fa fa-lock"></i>
                             <span class="rating-criteria-text">Safety</span>
                         </div>
-                        <div class="rating-criteria-star-container col-6" title="4.8">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
+                        <div class="rating-criteria-star-container col-6" title= <?php echo $property['rating_safety'] ?> >
+                            <?php for($i = 0; $i < round($property['rating_safety'], 0, PHP_ROUND_HALF_DOWN); $i++) { ?>
+                                <i class="fas fa-star"></i>
+                            <?php } ?>
+                            <?php if ($property['rating_safety'] - (round($property['rating_safety'], 0, PHP_ROUND_HALF_DOWN )) >= 0.4) { ?>
+                                <i class="fas fa-star-half-alt"></i>
+                            <?php } ?>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-md-4">
                     <div class="rating-circle">
-                        <div class="total-rating">4.2</div>
+                    <?php
+                        $total_rating = ($property['rating_clean'] + $property['rating_food'] + $property['rating_safety']) / 3;
+                        $avg_rating = round($total_rating, 1);
+                    ?>
+                        <div class="total-rating"> <?php echo $avg_rating ?> </div>
                         <div class="rating-circle-star-container">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="far fa-star"></i>
+                            <?php for($i = 0; $i < round($avg_rating, 0, PHP_ROUND_HALF_DOWN); $i++) { ?>
+                                <i class="fas fa-star"></i>
+                            <?php } ?>
+                            <?php if ($avg_rating - (round($avg_rating, 0, PHP_ROUND_HALF_DOWN )) >= 0.4) { ?>
+                                <i class="fas fa-star-half-alt"></i>
+                            <?php } ?>
                         </div>
                     </div>
                 </div>

@@ -144,7 +144,7 @@
                                 <div class="rent-unit">per month</div>
                             </div>
                             <div class="button-container col-6">
-                                <a href="property_detail.php?city=<?php echo $_GET['city']; ?>& name=<?php echo $property['name'] ?>" class="btn btn-primary">View</a>
+                                <a href="property_detail.php?city=<?php echo $_GET['city']; ?>& name=<?php echo $property['name']; ?>& id=<?php echo $property['id']; ?>" class="btn btn-primary">View</a>
                             </div>
                         </div>
                     </div>
